@@ -12,6 +12,7 @@ img { max-width: 500px; max-height: 1000px; }
 }
 
 .custom-file-upload {
+  white-space: normal;
   border: 1px solid #000;
   display: inline-block;
   padding: 6px 6px;
