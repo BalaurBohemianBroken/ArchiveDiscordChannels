@@ -28,3 +28,9 @@ img { max-width: 500px; max-height: 1000px; }
 .archive_selector {
     padding: 3px 0;
 }
+
+.return_to_top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+}

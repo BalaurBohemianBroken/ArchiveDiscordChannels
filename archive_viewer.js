@@ -3,10 +3,10 @@ loaded_files = {}
 const parse_html_archive = /(.*?)<p>/gs;
 const archive_clip_from_end = "</body></html>"
 
-# TODO: Return to top button
-# TODO: Chunking loading
-# TODO: Embed url loading
-# TODO: Write how-to guide
+// TODO: Return to top button
+// TODO: Chunking loading
+// TODO: Embed url loading
+// TODO: Write how-to guide
 
 window.onload = function() {
     add_archive_directory_listener()
@@ -91,12 +91,11 @@ function create_dropdown(label, indent_level) {
 
 function create_archive_selector(label, file_path, indent_level) {
     // Add clickable loading thingy.
-    console.log(file_path);
     var text_div = document.createElement("div");
     text_div.classList.add("archive_selector");
     var indent = text_indent_amount * indent_level;
     text_div.style.textIndent = `${indent}px`;
-    text_div.innerHTML = `<span data-file_path="${file_path}" onclick="clicked_archive(this);">#${label}</span>`
+    text_div.innerHTML = `<span data-file_path="${file_path}" onclick="clicked_archive(this);">${label}</span>`
     return text_div;
 }
 
