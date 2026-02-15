@@ -4,6 +4,10 @@ import datetime
 from pathlib import Path
 import os
 
+# TODO: Sanitize text.
+# TODO: Write how-to guide
+
+
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
 
@@ -80,6 +84,13 @@ class MyClient(discord.Client):
 		milestones_every = datetime.timedelta(seconds=30)
 		last_update = datetime.datetime.now()
 		archive_count = 0
+
+		if channel_is_server:
+			user_id = await channel.guild.fetch_member(self.user.id)
+			perms = channel.permissions_for(user_id)
+			if not perms.read_message_history or perms.read_messages:
+				print(f"Cannot access channel, no permission: {channel.name} ({channel.id})")
+				return
 
 		print(f"Archiving channel {channel.name} ({channel.id})...")
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
