@@ -1,0 +1,2 @@
+rename this file to token.txt
+replace all the text in here with the user's discord token into here to run the self bot

@@ -1,0 +1,29 @@
+body { background-color: #3b2146; white-space: pre-line; }
+p { color: #eee; font-size: 1rem; }
+img { max-width: 500px; max-height: 1000px; }
+.text { color: #eee; font-size: 1rem; }
+.time { color: #979797; }
+.date { font-weight: bold; font-size: 1.2rem; }
+.botAuthor { color: yellow; font-weight: bold; font-size: 1rem; }
+.otherAuthor { color: #e97b2e; font-weight: bold; font-size: 1rem; }
+
+#archive_folder_picker {
+  display: none;
+}
+
+.custom-file-upload {
+  border: 1px solid #000;
+  display: inline-block;
+  padding: 6px 6px;
+  cursor: pointer;
+  background: #384253;
+  color: #eee;
+}
+
+.details_dropdown {
+    cursor: pointer;
+}
+
+.archive_selector {
+    padding: 3px 0;
+}
