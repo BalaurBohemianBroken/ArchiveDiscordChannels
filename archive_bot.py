@@ -72,6 +72,8 @@ class MyClient(discord.Client):
 		channel_is_server = isinstance(channel, discord.abc.GuildChannel)
 		if channel_is_server:
 			archive_path = self.get_archive_path_server(channel)
+		elif isinstance(channel, discord.GroupChannel):
+			archive_path = self.get_archive_path_group(channel)
 		else:
 			archive_path = self.get_archive_path_dm(channel)
 
@@ -155,6 +157,10 @@ class MyClient(discord.Client):
 
 	def get_user_color(self, user):
 		return "#" + hex(user.color.value)[2:]
+
+	def get_archive_path_group(self, channel: discord.GroupChannel):
+		name = channel.name
+		return Path(".", "archive", "groups", f"{name}.html")
 
 	def get_archive_path_dm(self, channel: discord.DMChannel) -> Path:
 		name = channel.recipient.display_name
