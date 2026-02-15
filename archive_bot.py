@@ -23,7 +23,7 @@ class MyClient(discord.Client):
 		if c.startswith("P.archive"):
 			channel_id = re.search(r'id=(\d+)', c)
 			if channel_id is None:
-				print("Couldn't find channel ID in message" + c)
+				print("Couldn't find channel ID in message " + c)
 				return
 			print(f"Getting channel with id {channel_id.group(1)}...")
 			channel = self.get_channel(int(channel_id.group(1)))
@@ -71,7 +71,12 @@ class MyClient(discord.Client):
 				cls = "otherAuthor"
 				if message.author == self.user:
 					cls = "botAuthor"
-				f.write(f'<span class="{cls}">{author}</span>\n')
+				user_color = self.get_user_color(message.author)
+				span = f'<span class="{cls}"'
+				if user_color:
+					span += f' style="color:{user_color}"'
+				span += f'>{author}</span>\n'
+				f.write(span)
 			f.write(f"{msg_format}\n")
 
 			# Save attached files
@@ -101,6 +106,11 @@ class MyClient(discord.Client):
 		f.write("</p></body></html>")
 		f.close()
 		print("Finished archiving channel: " + str(channel.id))
+
+	def get_user_color(self, user):
+		if user.color == discord.Colour.default():
+			return None
+		return "#" + hex(user.color.value)[2:]
 
 
 client = MyClient()
