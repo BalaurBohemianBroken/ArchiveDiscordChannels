@@ -4,8 +4,6 @@ import datetime
 from pathlib import Path
 import os
 
-# TODO: Save to archive folder properly.
-
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
 
@@ -29,15 +27,41 @@ class MyClient(discord.Client):
 
 		c = message.content
 		if c.startswith("P.archive"):
-			channel_id = re.search(r'id=(\d+)', c)
-			if channel_id is None:
-				print("Couldn't find channel ID in message " + c)
+			channel_id = re.search(r'channel=(\d+)', c)
+			guild_id = re.search(r'server=(\d+)', c)
+			if channel_id is None and guild_id is None:
+				print("Provide a channel or server id, as channel=1234 or server=1234 " + c)
 				return
-			print(f"Getting channel with id {channel_id.group(1)}...")
-			channel = self.get_channel(int(channel_id.group(1)))
-			if channel is None:
-				print("Couldn't find channel with ID " + channel_id.group(1))
-				return
+			if channel_id:
+				await self.archive_channel_command(channel_id.group(1))
+			elif guild_id:
+				await self.archive_guild_command(guild_id.group(1))
+
+	async def archive_channel_command(self, channel_id: str):
+		print(f"Getting channel with id {channel_id}...")
+		channel = self.get_channel(int(channel_id))
+		if channel is None:
+			print("Couldn't find channel with ID " + channel_id)
+			return
+		await self.archive_channel_history(channel)
+
+	async def archive_guild_command(self, guild_id: str):
+		print(f"Getting server with id {guild_id}...")
+		guild = self.get_guild(int(guild_id))
+		if guild is None:
+			print("Couldn't find guild with ID " + guild_id)
+			return
+		print(f"Found. Getting channels in guild {guild.name}...")
+		try:
+			channels = await guild.fetch_channels()
+		except (discord.HTTPException, discord.InvalidData) as e:
+			print("Failed to fetch channels. Error: " + e)
+			return
+		print(f"Found {len(channels)} channels: " + str(channels))
+		for channel in channels:
+			if not self.can_archive_channel(channel):
+				print(f"Skipping channel of type " + str(type(channel)))
+				continue
 			await self.archive_channel_history(channel)
 
 	async def archive_channel_history(self, channel):
@@ -55,7 +79,7 @@ class MyClient(discord.Client):
 		last_update = datetime.datetime.now()
 		archive_count = 0
 
-		print(f"Archiving channel {channel.id}...")
+		print(f"Archiving channel {channel.name} ({channel.id})...")
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
@@ -111,7 +135,10 @@ class MyClient(discord.Client):
 			last_author = author
 		f.write("</p></body></html>")
 		f.close()
-		print("Finished archiving channel: " + str(channel.id))
+		print(f"Finished archiving channel: {channel.name} ({str(channel.id)})")
+
+	def can_archive_channel(self, channel):
+		return isinstance(channel, (discord.VoiceChannel, discord.ForumChannel, discord.DMChannel, discord.TextChannel, discord.GroupChannel))
 
 	# DM authors don't have role colours, so are handled differently.
 	def get_author_dm(self, message):

@@ -3,6 +3,11 @@ loaded_files = {}
 const parse_html_archive = /(.*?)<p>/gs;
 const archive_clip_from_end = "</body></html>"
 
+# TODO: Return to top button
+# TODO: Chunking loading
+# TODO: Embed url loading
+# TODO: Write how-to guide
+
 window.onload = function() {
     add_archive_directory_listener()
 }
