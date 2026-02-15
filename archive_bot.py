@@ -11,6 +11,14 @@ with open("token.txt", "r") as f:
 
 
 class MyClient(discord.Client):
+	def __init__(self, **options):
+		super().__init__(**options)
+		self.html_doc_start = """<!DOCTYPE html>
+		<html>
+		<body>
+		<p>"""
+		self.html_doc_end = "</p></body></html>"
+
 	async def on_ready(self):
 		print('Logged on as', self.user)
 
@@ -30,13 +38,14 @@ class MyClient(discord.Client):
 			if channel is None:
 				print("Couldn't find channel with ID " + channel_id.group(1))
 				return
-			await self.archive_dm_history(channel)
+			await self.archive_channel_history(channel)
 
-	async def archive_dm_history(self, channel):
+	async def archive_channel_history(self, channel):
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.
 		last_author = ""
 		last_date = ""  # The d/m/y of the last message.
 		last_datetime = None
+		channel_is_server = isinstance(channel, discord.abc.GuildChannel)
 
 		milestones_every = datetime.timedelta(seconds=30)
 		last_update = datetime.datetime.now()
@@ -44,11 +53,7 @@ class MyClient(discord.Client):
 
 		print(f"Archiving channel {channel.id}...")
 		f = open(f"{channel.id}.html", "w", encoding="utf-8")
-		f.write("""<!DOCTYPE html>
-		<html>
-		<head>
-		</head>""")
-		f.write('<body><p>')
+		f.write(self.html_doc_start)
 		async for message in channel.history(limit=None, oldest_first=True):
 			archive_count += 1
 			if datetime.datetime.now() - last_update >= milestones_every:
@@ -68,14 +73,10 @@ class MyClient(discord.Client):
 			if m_date != last_date:
 				f.write(f'\n<span class="date">======== {m_date} ========</span>\n')
 			if last_author != author or time_diff >= grouping_limit or m_date != last_date:
-				cls = "otherAuthor"
-				if message.author == self.user:
-					cls = "botAuthor"
-				user_color = self.get_user_color(message.author)
-				span = f'<span class="{cls}"'
-				if user_color:
-					span += f' style="color:{user_color}"'
-				span += f'>{author}</span>\n'
+				if channel_is_server:
+					span = self.get_author_server(message)
+				else:
+					span = self.get_author_dm(message)
 				f.write(span)
 			f.write(f"{msg_format}\n")
 
@@ -107,9 +108,20 @@ class MyClient(discord.Client):
 		f.close()
 		print("Finished archiving channel: " + str(channel.id))
 
+	# DM authors don't have role colours, so are handled differently.
+	def get_author_dm(self, message):
+		cls = "otherAuthor"
+		if message.author == self.user:
+			cls = "botAuthor"
+		span = f'<span class="{cls}">{message.author.display_name}</span>\n'
+		return span
+
+	def get_author_server(self, message):
+		user_color = self.get_user_color(message.author)
+		span = f'<span style="color:{user_color}">{message.author.display_name}</span>'
+		return span
+
 	def get_user_color(self, user):
-		if user.color == discord.Colour.default():
-			return None
 		return "#" + hex(user.color.value)[2:]
 
 
