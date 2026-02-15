@@ -2,9 +2,9 @@ import discord
 import re
 import datetime
 from pathlib import Path
+import os
 
-# TODO: Choose file to load.
-# TODO: Fetch colour of user, or fall back to a palette.
+# TODO: Save to archive folder properly.
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -46,13 +46,18 @@ class MyClient(discord.Client):
 		last_date = ""  # The d/m/y of the last message.
 		last_datetime = None
 		channel_is_server = isinstance(channel, discord.abc.GuildChannel)
+		if channel_is_server:
+			archive_path = self.get_archive_path_server(channel)
+		else:
+			archive_path = self.get_archive_path_dm(channel)
 
 		milestones_every = datetime.timedelta(seconds=30)
 		last_update = datetime.datetime.now()
 		archive_count = 0
 
 		print(f"Archiving channel {channel.id}...")
-		f = open(f"{channel.id}.html", "w", encoding="utf-8")
+		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
+		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
 		async for message in channel.history(limit=None, oldest_first=True):
 			archive_count += 1
@@ -123,6 +128,15 @@ class MyClient(discord.Client):
 
 	def get_user_color(self, user):
 		return "#" + hex(user.color.value)[2:]
+
+	def get_archive_path_dm(self, channel: discord.DMChannel) -> Path:
+		name = channel.recipient.display_name
+		return Path(".", "archive", "DMs", f"{name}.html")
+
+	def get_archive_path_server(self, channel: discord.abc.GuildChannel) -> Path:
+		if channel.category:
+			return Path(".", "archive", "servers", channel.guild.name, channel.category.name, f"{channel.name}.html")
+		return Path(".", "archive", "servers", channel.guild.name, f"{channel.name}.html")
 
 
 client = MyClient()
