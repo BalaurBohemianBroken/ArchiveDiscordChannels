@@ -31,7 +31,7 @@ function update_loop() {
         element_button_load_all.style.display = "none";
     }
     else {
-        element_button_load_all.style.display = "inline-block";
+        element_button_load_all.style.display = "block";
     }
 
     // If close to bottom, render more of the archive file
