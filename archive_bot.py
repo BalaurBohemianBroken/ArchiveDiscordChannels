@@ -5,11 +5,12 @@ from pathlib import Path
 import os
 import logging
 import pathvalidate
+import bleach
 
-# TODO: Sanitize text.
 # TODO: Write how-to guide
 # TODO: Check weirdness with datetime
 # TODO: Replace pings with user's name
+# TODO: User list, pins, roles, emoji
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -125,7 +126,8 @@ class MyClient(discord.Client):
 				time_diff = m_t - last_datetime
 
 			author = str(message.author.display_name)
-			msg_format = f'<span><span class="time">{m_time}</span> {message.content}</span>'  # How a message is displayed in my formatting.
+			content_sanitized = bleach.clean(message.content)
+			msg_format = f'<span><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
 
 			# If a new day has started, cause a message break.
 			if m_date != last_date:

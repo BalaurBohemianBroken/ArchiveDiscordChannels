@@ -13,7 +13,6 @@ element_archive_content = null;
 element_channel_selector = null;
 element_button_load_all = null;
 
-// TODO: Had some weird issues when loading archives one after another. Start was clipped. Investigate.
 // TODO: Embed url loading
 
 window.onload = function() {

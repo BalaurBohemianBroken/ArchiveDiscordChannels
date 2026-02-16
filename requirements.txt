@@ -12,3 +12,4 @@ protobuf==6.33.2
 typing_extensions==4.15.0
 yarl==1.22.0
 pathvalidate
+bleach
