@@ -3,13 +3,13 @@ import re
 import datetime
 from pathlib import Path
 import os
+import logging
 
 # TODO: Sanitize text.
 # TODO: Write how-to guide
 # TODO: Automatically figure out if server or dm
 # TODO: Check weirdness with datetime
 # TODO: Provide multiple IDs
-# TODO: Make print output less noisy
 
 
 with open("token.txt", "r") as f:
@@ -24,9 +24,10 @@ class MyClient(discord.Client):
 		<body>
 		<p>"""
 		self.html_doc_end = "</p></body></html>"
+		self.logger = logging.getLogger("discord")
 
 	async def on_ready(self):
-		print('Logged on as', self.user)
+		printlog(f"Logged on as {self.user}", self.logger, logging.INFO)
 
 	async def on_message(self, message):
 		# only respond to ourselves
@@ -40,44 +41,47 @@ class MyClient(discord.Client):
 	async def archive_command(self, message_content: str):
 		found_ids = re.findall(r'\d+', message_content)
 		if len(found_ids) <= 0:
-			print("Could not find a server or channel id in the command!")
+			printlog("Could not find a server or channel id in the command!", self.logger, logging.WARNING)
 			return
 
 		for found_id in found_ids:
-			# Try get methods first, fetch if that fails, then report error.
-			found = self.get_channel(found_id)
-			if found:
-				await self.archive_channel_command(found)
-				continue
-			found = self.get_guild(found_id)
-			if found:
-				await self.archive_guild_command(found)
-				continue
+			try:
+				# Try get methods first, fetch if that fails, then report error.
+				found = self.get_channel(found_id)
+				if found:
+					await self.archive_channel_command(found)
+					continue
+				found = self.get_guild(found_id)
+				if found:
+					await self.archive_guild_command(found)
+					continue
 
-			found = await self.fetch_channel(found_id)
-			if found:
-				await self.archive_channel_command(found)
-				continue
-			found = await self.fetch_guild(found_id)
-			if found:
-				await self.archive_guild_command(found)
-				continue
+				found = await self.fetch_channel(found_id)
+				if found:
+					await self.archive_channel_command(found)
+					continue
+				found = await self.fetch_guild(found_id)
+				if found:
+					await self.archive_guild_command(found)
+					continue
 
-			print("Could not find server or channel with id: " + str(found_id))
+				printlog("Could not find server or channel with id: " + str(found_id), self.logger, logging.WARNING)
+			except discord.Forbidden as e:
+				printlog(f"Could not access id ({found_id}), no permission.", self.logger, logging.WARNING)
 
 	async def archive_guild_command(self, guild: discord.Guild):
 		try:
 			channels = await guild.fetch_channels()
 		except (discord.HTTPException, discord.InvalidData) as e:
-			print("Failed to fetch channels. Error: " + e)
+			printlog("Failed to fetch channels. Error: " + e, self.logger, logging.ERROR)
 			return
-		print(f"Found {len(channels)} channels: " + str(channels))
+		printlog(f"Found {len(channels)} channels: " + str(channels), self.logger, logging.INFO)
 		for channel in channels:
 			await self.archive_channel_command(channel)
 
 	async def archive_channel_command(self, channel):
 		if not self.can_archive_channel(channel):
-			print(f"Skipping channel ({channel.id}) of type {type(channel)}")
+			printlog(f"Skipping channel ({channel.id}) of type {type(channel)}", self.logger, logging.INFO)
 			return
 		await self.archive_channel_history(channel)
 
@@ -102,17 +106,17 @@ class MyClient(discord.Client):
 			user_id = await channel.guild.fetch_member(self.user.id)
 			perms = channel.permissions_for(user_id)
 			if not perms.read_message_history or not perms.read_messages:
-				print(f"Cannot access channel, no permission: {channel.name} ({channel.id})")
+				printlog(f"Cannot access channel, no permission: {channel.name} ({channel.id})", self.logger, logging.INFO)
 				return
 
-		print(f"Archiving channel {channel.name} ({channel.id})...")
+		printlog(f"Archiving channel {channel.name} ({channel.id})...", self.logger, logging.INFO)
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
 		async for message in channel.history(limit=None, oldest_first=True):
 			archive_count += 1
 			if datetime.datetime.now() - last_update >= milestones_every:
-				print(f"Archived {archive_count} messages.")
+				printlog(f"Archived {archive_count} messages.", self.logger, logging.INFO)
 				last_update = datetime.datetime.now()
 			m_t = message.created_at  # Datetime object
 			m_date = m_t.strftime("%d/%m/%Y")  # Date as a string in my preferred format.
@@ -151,7 +155,7 @@ class MyClient(discord.Client):
 						if re.search(r".(png|jpg|gif|jpeg)$", att.filename) is not None:
 							atts_tags_string += f"<img src='attachments/{channel.id}/{fname}'>\n"
 					except (discord.NotFound, discord.HTTPException) as e:
-						print(f"==Attachment Error==\nMessage snowflake: {message.id}\nError: {e}")
+						printlog(f"==Attachment Error==\nMessage snowflake: {message.id}\nError: {e}", self.logger, logging.ERROR)
 				f.write(f"<span>File: {atts_string}</span>\n")
 				if atts_tags_string:
 					f.write(f"<span>{atts_tags_string}</span>\n")
@@ -159,9 +163,9 @@ class MyClient(discord.Client):
 			last_date = m_date
 			last_datetime = m_t
 			last_author = author
-		f.write("</p></body></html>")
+		f.write(self.html_doc_end)
 		f.close()
-		print(f"Finished archiving channel: {channel.name} ({str(channel.id)})")
+		printlog(f"Finished archiving channel: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
 
 	def can_archive_channel(self, channel):
 		return isinstance(channel, (discord.VoiceChannel, discord.ForumChannel, discord.DMChannel, discord.TextChannel, discord.GroupChannel))
@@ -196,5 +200,34 @@ class MyClient(discord.Client):
 		return Path(".", "archive", "servers", channel.guild.name, f"{channel.name}.html")
 
 
-client = MyClient()
-client.run(TOKEN)
+# Prints to console, also logs.
+# I do this because the library I use spams the console otherwise.
+# There may be a way to set up a separate logger for myself and join them,
+# but this is faster and simpler.
+def printlog(message, logger: logging.Logger, level):
+	print(message)
+	logger.log(level, message)
+
+
+def main():
+	client = MyClient()
+	logger = logging.getLogger("discord")
+	formatter = logging.Formatter("%(asctime)s | %(name)s |  %(levelname)s: %(message)s")
+	logger.setLevel(logging.INFO)
+
+	file_handler = logging.FileHandler(filename='archiver.log', encoding='utf-8', mode='w')
+	file_handler.setLevel(logging.DEBUG)
+	file_handler.setFormatter(formatter)
+
+	console_handler = logging.StreamHandler()
+	console_handler.setLevel(logging.ERROR)
+	console_handler.setFormatter(formatter)
+
+	logger.addHandler(file_handler)
+	logger.addHandler(console_handler)
+
+	printlog("Connecting to Discord...", logger, logging.INFO)
+	client.run(TOKEN, log_handler=None)
+
+if __name__ == "__main__":
+	main()
