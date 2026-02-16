@@ -145,7 +145,7 @@ class MyClient(discord.Client):
 
 			author = str(message.author.display_name)
 			content_sanitized = bleach.clean(message.content)
-			msg_format = f'<span><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
+			msg_format = f'<span class="message"><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
 
 			# If a new day has started, cause a message break.
 			if m_date != last_date:
@@ -175,9 +175,9 @@ class MyClient(discord.Client):
 							atts_tags_string += f"<img src='attachments/{channel.id}/{fname}'>\n"
 					except (discord.NotFound, discord.HTTPException) as e:
 						printlog(f"==Attachment Error==\nMessage snowflake: {message.id}\nError: {e}", self.logger, logging.ERROR)
-				f.write(f"<span>File: {atts_string}</span>\n")
+				f.write(f"<span class='embed_message'>File: {atts_string}</span>\n")
 				if atts_tags_string:
-					f.write(f"<span>{atts_tags_string}</span>\n")
+					f.write(f"<span class='embed'>{atts_tags_string}</span>\n")
 
 			last_date = m_date
 			last_datetime = m_t
@@ -195,12 +195,12 @@ class MyClient(discord.Client):
 		cls = "otherAuthor"
 		if message.author == self.user:
 			cls = "botAuthor"
-		span = f'<span class="{cls}">{message.author.display_name}</span>\n'
+		span = f'<span class="{cls} message_author">{message.author.display_name}</span>\n'
 		return span
 
 	def get_author_server(self, message):
 		user_color = self.get_user_color(message.author)
-		span = f'<span style="color:{user_color}">{message.author.display_name}</span>\n'
+		span = f'<span class="message_author" style="color:{user_color}">{message.author.display_name}</span>\n'
 		return span
 
 	def get_user_color(self, user):
