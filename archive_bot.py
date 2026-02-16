@@ -6,6 +6,10 @@ import os
 
 # TODO: Sanitize text.
 # TODO: Write how-to guide
+# TODO: Automatically figure out if server or dm
+# TODO: Check weirdness with datetime
+# TODO: Provide multiple IDs
+# TODO: Make print output less noisy
 
 
 with open("token.txt", "r") as f:
@@ -31,31 +35,37 @@ class MyClient(discord.Client):
 
 		c = message.content
 		if c.startswith("P.archive"):
-			channel_id = re.search(r'channel=(\d+)', c)
-			guild_id = re.search(r'server=(\d+)', c)
-			if channel_id is None and guild_id is None:
-				print("Provide a channel or server id, as channel=1234 or server=1234 " + c)
-				return
-			if channel_id:
-				await self.archive_channel_command(channel_id.group(1))
-			elif guild_id:
-				await self.archive_guild_command(guild_id.group(1))
+			await self.archive_command(c)
 
-	async def archive_channel_command(self, channel_id: str):
-		print(f"Getting channel with id {channel_id}...")
-		channel = self.get_channel(int(channel_id))
-		if channel is None:
-			print("Couldn't find channel with ID " + channel_id)
+	async def archive_command(self, message_content: str):
+		found_ids = re.findall(r'\d+', message_content)
+		if len(found_ids) <= 0:
+			print("Could not find a server or channel id in the command!")
 			return
-		await self.archive_channel_history(channel)
 
-	async def archive_guild_command(self, guild_id: str):
-		print(f"Getting server with id {guild_id}...")
-		guild = self.get_guild(int(guild_id))
-		if guild is None:
-			print("Couldn't find guild with ID " + guild_id)
-			return
-		print(f"Found. Getting channels in guild {guild.name}...")
+		for found_id in found_ids:
+			# Try get methods first, fetch if that fails, then report error.
+			found = self.get_channel(found_id)
+			if found:
+				await self.archive_channel_command(found)
+				continue
+			found = self.get_guild(found_id)
+			if found:
+				await self.archive_guild_command(found)
+				continue
+
+			found = await self.fetch_channel(found_id)
+			if found:
+				await self.archive_channel_command(found)
+				continue
+			found = await self.fetch_guild(found_id)
+			if found:
+				await self.archive_guild_command(found)
+				continue
+
+			print("Could not find server or channel with id: " + str(found_id))
+
+	async def archive_guild_command(self, guild: discord.Guild):
 		try:
 			channels = await guild.fetch_channels()
 		except (discord.HTTPException, discord.InvalidData) as e:
@@ -63,10 +73,13 @@ class MyClient(discord.Client):
 			return
 		print(f"Found {len(channels)} channels: " + str(channels))
 		for channel in channels:
-			if not self.can_archive_channel(channel):
-				print(f"Skipping channel of type " + str(type(channel)))
-				continue
-			await self.archive_channel_history(channel)
+			await self.archive_channel_command(channel)
+
+	async def archive_channel_command(self, channel):
+		if not self.can_archive_channel(channel):
+			print(f"Skipping channel ({channel.id}) of type {type(channel)}")
+			return
+		await self.archive_channel_history(channel)
 
 	async def archive_channel_history(self, channel):
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.

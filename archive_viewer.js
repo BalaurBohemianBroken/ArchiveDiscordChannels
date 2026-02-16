@@ -7,7 +7,7 @@ current_archive_text = null;
 archive_fully_loaded = false;
 re_span = /(.+?<\/span>[\n\r]+)/gs;
 
-// TODO: Chunking loading
+// TODO: Add button to force loading the entire archive, for searching purposes.
 // TODO: Embed url loading
 
 window.onload = function() {
