@@ -92,10 +92,9 @@ class MyClient(discord.Client):
 		# Forums are a weird middle ground. I'd prefer to treat them as their own thing,
 		# but that they pretend to be channels complicates things.
 		# So, I deal with it here.
-		if isinstance(channel, discord.ForumChannel):
-			await self.archive_threads(channel)
-		else:
+		if not isinstance(channel, discord.ForumChannel):
 			await self.archive_channel_messages(channel)
+		await self.archive_threads(channel)
 
 	async def archive_threads(self, channel: discord.abc.GuildChannel):
 		if not self.can_channel_have_threads(channel):
@@ -105,8 +104,12 @@ class MyClient(discord.Client):
 		for thread in channel_threads:
 			await self.archive_channel_messages(thread)
 		try:
-			async for thread in channel.archived_threads(limit=None, private=True, joined=True):
-				await self.archive_channel_messages(thread)
+			if isinstance(channel, discord.TextChannel):
+				async for thread in channel.archived_threads(limit=None, private=True, joined=True):
+					await self.archive_channel_messages(thread)
+			elif isinstance(channel, discord.ForumChannel):
+				async for thread in channel.archived_threads(limit=None):
+					await self.archive_channel_messages(thread)
 		except Exception as e:
 			printlog(f"Failed to get threads in channel: {channel.name} ({channel.id}) - Error: {e}", self.logger, logging.ERROR)
 
@@ -238,7 +241,7 @@ class MyClient(discord.Client):
 
 	def get_archive_path_thread(self, thread: discord.Thread) -> Path:
 		server_name = pathvalidate.sanitize_filename(thread.guild.name)
-		thread_name = pathvalidate.sanitize_filename(f"{thread.created_at.timestamp()}-{thread.name}.html")
+		thread_name = pathvalidate.sanitize_filename(f"{int(thread.created_at.timestamp())}-{thread.name}.html")
 		p = Path(".", "archive", "servers", server_name)
 		if thread.category:
 			category_name = pathvalidate.sanitize_filename(f"{str(thread.category.position).zfill(3)}-{thread.category.name}")
