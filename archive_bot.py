@@ -119,6 +119,7 @@ class MyClient(discord.Client):
 		last_date = ""  # The d/m/y of the last message.
 		last_datetime = None
 		thread_or_channel = "channel"
+		channel_name = channel.recipient if isinstance(channel, discord.DMChannel) else channel.name
 		channel_is_server = isinstance(channel, discord.abc.GuildChannel)
 		if channel_is_server:
 			archive_path = self.get_archive_path_server(channel)
@@ -141,7 +142,7 @@ class MyClient(discord.Client):
 				printlog(f"Cannot access channel, no permission: {channel.name} ({channel.id})", self.logger, logging.INFO)
 				return
 
-		printlog(f"Archiving {thread_or_channel} {channel.name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
+		printlog(f"Archiving {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
@@ -198,7 +199,7 @@ class MyClient(discord.Client):
 			last_author = author
 		f.write(self.html_doc_end)
 		f.close()
-		printlog(f"Finished archiving {thread_or_channel}: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
+		printlog(f"Finished archiving {thread_or_channel}: {channel_name} ({str(channel.id)})", self.logger, logging.INFO)
 
 	#region Helper functions
 	def can_archive_channel(self, channel):
