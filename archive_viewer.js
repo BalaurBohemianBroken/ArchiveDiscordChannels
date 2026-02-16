@@ -4,23 +4,32 @@ const distance_to_load_chunk = 5000;
 loaded_files = {}
 
 current_archive_text = null;
-archive_fully_loaded = false;
+archive_fully_loaded = true;  // True by default because there is no archive to load.
 re_span = /(.+?<\/span>[\n\r]+)/gs;
+loading_latch = false;
 
-// TODO: Add button to force loading the entire archive, for searching purposes.
+// ID'd elements. Filled on onload.
+element_archive_content = null;
+element_channel_selector = null;
+
+// TODO: Hide 'Load full archive' button contextually
 // TODO: Embed url loading
 
 window.onload = function() {
+    element_archive_content = document.getElementById("archive_content")
+    element_channel_selector = document.getElementById("channel_selector")
     add_archive_directory_listener();
     setInterval(update_loop, 500);
 }
 
 function update_loop() {
     // If close to bottom, render more of the archive file
-    var scroll_y = window.scrollY
-    var page_height = (document.height !== undefined) ? document.height : document.body.offsetHeight;
-    if (page_height - scroll_y <= distance_to_load_chunk) {
-        load_archive_chunk(document.getElementById("archive_content"), current_archive_text, loading_chunk_size);
+    if (archive_fully_loaded) {
+        var scroll_y = window.scrollY
+        var page_height = (document.height !== undefined) ? document.height : document.body.offsetHeight;
+        if (page_height - scroll_y <= distance_to_load_chunk) {
+            load_archive_chunk(element_archive_content, current_archive_text, loading_chunk_size);
+        }
     }
 }
 
@@ -30,13 +39,11 @@ function add_archive_directory_listener() {
 }
 
 function on_select_archive_directory(event) {
-    var channel_selector = document.getElementById("channel_selector");
-
     reset_current_archive();
 
     var folder_structure = create_folder_structure(event.target.files);
     var root_folder = Object.keys(folder_structure)[0];
-    read_archive_folder(folder_structure[root_folder], root_folder, root_folder, channel_selector, 0);
+    read_archive_folder(folder_structure[root_folder], root_folder, root_folder, element_channel_selector, 0);
 }
 
 function create_folder_structure(files) {
@@ -129,15 +136,20 @@ function loaded_archive(archive_content) {
     dummy.innerHTML = archive_content;
     current_archive_text = dummy.querySelector("p").innerHTML;
 
-    var size_of_loaded = load_archive_chunk(document.getElementById("archive_content"), current_archive_text, loading_chunk_size);
+    var size_of_loaded = load_archive_chunk(element_archive_content, current_archive_text, loading_chunk_size);
     current_archive_text = current_archive_text.substring(size_of_loaded);
 }
 
 function load_archive_chunk(into, archive, chunk_size) {
+    if (loading_latch) {
+        console.warning("Tried to load new archive while already loading archive.")
+        return;
+    }
+    loading_latch = true;
     // Load more messages.
     var chunks_loaded = 0;
     var chunk_loading = "";
-    while (chunks_loaded < loading_chunk_size && !archive_fully_loaded) {
+    while (chunks_loaded < chunk_size && !archive_fully_loaded) {
         chunks_loaded += 1;
         var match = re_span.exec(archive);
         if (match == null) {
@@ -151,11 +163,17 @@ function load_archive_chunk(into, archive, chunk_size) {
     chunk.classList.add("archive_chunk");
     chunk.innerHTML = chunk_loading;
     into.appendChild(chunk);
+    loading_latch = false;
     return chunk_loading.length;
 }
 
+function load_archive_full() {
+    var size_of_loaded = load_archive_chunk(element_archive_content, current_archive_text, 999999999);
+    current_archive_text = current_archive_text.substring(size_of_loaded);
+}
+
 function reset_current_archive() {
-    document.getElementById("archive_content").innerHTML = "";
+    element_archive_content.innerHTML = "";
     current_archive_text = null;
     current_archive_position = 0;
     archive_fully_loaded = false;

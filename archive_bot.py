@@ -7,10 +7,7 @@ import logging
 
 # TODO: Sanitize text.
 # TODO: Write how-to guide
-# TODO: Automatically figure out if server or dm
 # TODO: Check weirdness with datetime
-# TODO: Provide multiple IDs
-
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()

@@ -6,14 +6,15 @@
 </head>
 <body>
 <a id="top"></a>
-<a href="#top" class="custom-file-upload return_to_top">Back to top</a>
-<label class="custom-file-upload">
+<a href="#top" class="button return_to_top">Back to top</a>
+<label class="button">
     <input type="file" id="archive_folder_picker" name="fileList" webkitdirectory="">
     <span class="text" style="/*! padding: 0; */">Read archive directory</span>
 </label>
 <div id="channel_selector">
 
 </div>
+<button type="button" title="Load all content from the archive. This can take a while, but will make searching easier." class="button" onclick="load_archive_full()">Load full archive</button>
 <p id="archive_content" class="text">
 
 </p>
