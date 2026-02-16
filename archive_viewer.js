@@ -1,13 +1,27 @@
 const text_indent_amount = 15;
+const loading_chunk_size = 500;
+const distance_to_load_chunk = 5000;
 loaded_files = {}
-const parse_html_archive = /(.*?)<p>/gs;
-const archive_clip_from_end = "</body></html>"
+
+current_archive_text = null;
+archive_fully_loaded = false;
+re_span = /(.+?<\/span>[\n\r]+)/gs;
 
 // TODO: Chunking loading
 // TODO: Embed url loading
 
 window.onload = function() {
-    add_archive_directory_listener()
+    add_archive_directory_listener();
+    setInterval(update_loop, 500);
+}
+
+function update_loop() {
+    // If close to bottom, render more of the archive file
+    var scroll_y = window.scrollY
+    var page_height = (document.height !== undefined) ? document.height : document.body.offsetHeight;
+    if (page_height - scroll_y <= distance_to_load_chunk) {
+        load_archive_chunk(document.getElementById("archive_content"), current_archive_text, loading_chunk_size);
+    }
 }
 
 function add_archive_directory_listener() {
@@ -18,8 +32,7 @@ function add_archive_directory_listener() {
 function on_select_archive_directory(event) {
     var channel_selector = document.getElementById("channel_selector");
 
-    // Remove old structure
-    channel_selector.innerHTML = "";
+    reset_current_archive();
 
     var folder_structure = create_folder_structure(event.target.files);
     var root_folder = Object.keys(folder_structure)[0];
@@ -99,7 +112,8 @@ function create_archive_selector(label, file_path, indent_level) {
 
 // From: https://stackoverflow.com/a/196510
 function clicked_archive(element) {
-    document.getElementById("archive_content").innerHTML = "";
+    reset_current_archive();
+
     var element_path = element.getAttribute("data-file_path");
     var archive_file = loaded_files[element_path];
     var reader = new FileReader();
@@ -110,5 +124,39 @@ function clicked_archive(element) {
 }
 
 function loaded_archive(archive_content) {
-    document.getElementById("archive_content").innerHTML = archive_content;
+    // This is pretty rough. But it should work with any modern archive files I make.
+    var dummy = document.createElement("div");
+    dummy.innerHTML = archive_content;
+    current_archive_text = dummy.querySelector("p").innerHTML;
+
+    var size_of_loaded = load_archive_chunk(document.getElementById("archive_content"), current_archive_text, loading_chunk_size);
+    current_archive_text = current_archive_text.substring(size_of_loaded);
+}
+
+function load_archive_chunk(into, archive, chunk_size) {
+    // Load more messages.
+    var chunks_loaded = 0;
+    var chunk_loading = "";
+    while (chunks_loaded < loading_chunk_size && !archive_fully_loaded) {
+        chunks_loaded += 1;
+        var match = re_span.exec(archive);
+        if (match == null) {
+            archive_fully_loaded = true;
+            break;
+        }
+        chunk_loading += match[0];
+    }
+
+    var chunk = document.createElement("div");
+    chunk.classList.add("archive_chunk");
+    chunk.innerHTML = chunk_loading;
+    into.appendChild(chunk);
+    return chunk_loading.length;
+}
+
+function reset_current_archive() {
+    document.getElementById("archive_content").innerHTML = "";
+    current_archive_text = null;
+    current_archive_position = 0;
+    archive_fully_loaded = false;
 }
