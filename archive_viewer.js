@@ -9,7 +9,7 @@ re_span = /(.+?<\/span>[\n\r]+)/gs;
 loading_latch = false;  // Not sure this does anything in JS, not sure how setInterval works. But, for safety.
 
 re_folder_name_crop = /(?:\d*-)?(.+)/
-re_file_name_crop = /(?:\d*-)?(.+?)(\.html)/
+re_file_name_crop = /(?:\d*-)?(.+?)(?:\.html)/
 
 // ID'd elements. Filled in onload.
 element_archive_content = null;
@@ -93,6 +93,12 @@ function read_archive_folder(folder_contents, folder_name, current_path, parent_
     var my_details = create_dropdown(folder_name, indent_level);
     parent_element.append(my_details);
 
+    // Sort the keys so that the lowest number is at the top.
+    if (!folder_contents) {
+        return;
+    }
+    var entries = Object.keys(folder_contents);
+    entries.sort();
     for (var entry in folder_contents) {
         if (entry == "!!files") {
             continue;
@@ -102,6 +108,12 @@ function read_archive_folder(folder_contents, folder_name, current_path, parent_
 
     if (!("!!files" in folder_contents))
         return;
+    entries = folder_contents["!!files"];
+    entries.sort();
+    // Check if this is a thread or a channel. Threads are timestamped.
+    if (entries[0][3] != "-") {
+        entries.reverse();
+    }
     for (var file_name of folder_contents["!!files"]) {
         var extension = file_name.substring(file_name.length - 4)
         if (extension != "html")
