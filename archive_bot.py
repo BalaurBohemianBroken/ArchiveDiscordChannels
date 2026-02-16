@@ -25,7 +25,11 @@ class MyClient(discord.Client):
 		<body>
 		<p>"""
 		self.html_doc_end = "</p></body></html>"
+		self.re_user_mention = r"(<@(\d+)>)"
 		self.logger = logging.getLogger("discord")
+
+		# id: user
+		self.saved_users = {}
 
 	async def on_ready(self):
 		printlog(f"Logged on as {self.user}", self.logger, logging.INFO)
@@ -158,7 +162,39 @@ class MyClient(discord.Client):
 				time_diff = m_t - last_datetime
 
 			author = str(message.author.display_name)
-			content_sanitized = bleach.clean(message.content)
+			# Replace @ mentions with @username
+			message_content = message.content
+			# from: to
+			substitutions = {}
+			for match in re.findall(self.re_user_mention, message_content):
+				matched_user_id = match[1]
+				# Try find member and get display name
+				sub_name = ""
+				if isinstance(message.channel, discord.abc.GuildChannel):
+					try:
+						fetched_member = await message.channel.guild.fetch_member(matched_user_id)
+						sub_name = fetched_member.display_name
+					except:
+						pass
+				if sub_name == "":
+					# For some reason, this gives me a 403 unauthorized exception.
+					# That's not documented behaviour, so I don't know how to solve that.
+					# I'm leaving it here on the off chance it works, sometimes.
+					try:
+						fetched_user = await self.fetch_user(matched_user_id)
+						sub_name = fetched_user.display_name
+					except:
+						pass
+				if sub_name == "":
+					self.logger.log(logging.WARNING, f"Unable to get guild or user for message ping at id: {matched_user_id}")
+					continue
+				substitutions[match[0]] = f"@{sub_name}"
+			for substitution in substitutions:
+				sub_from = substitution
+				sub_to = substitutions[substitution]
+				message_content = message_content.replace(sub_from, sub_to)
+
+			content_sanitized = bleach.clean(message_content)
 			msg_format = f'<span class="message"><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
 
 			# If a new day has started, cause a message break.
