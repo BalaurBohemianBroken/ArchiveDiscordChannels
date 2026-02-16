@@ -88,7 +88,7 @@ class MyClient(discord.Client):
 		if channel_is_server:
 			user_id = await channel.guild.fetch_member(self.user.id)
 			perms = channel.permissions_for(user_id)
-			if not perms.read_message_history or perms.read_messages:
+			if not perms.read_message_history or not perms.read_messages:
 				print(f"Cannot access channel, no permission: {channel.name} ({channel.id})")
 				return
 
