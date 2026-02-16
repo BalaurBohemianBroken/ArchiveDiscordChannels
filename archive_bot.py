@@ -12,7 +12,6 @@ import bleach
 # TODO: Replace pings with user's name
 # TODO: User list, pins, roles, emoji
 # TODO: Archived threads in forum
-# TODO: Get threads from channels
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()

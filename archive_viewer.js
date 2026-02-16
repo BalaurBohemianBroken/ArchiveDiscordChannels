@@ -8,6 +8,9 @@ archive_fully_loaded = true;  // True by default because there is no archive to 
 re_span = /(.+?<\/span>[\n\r]+)/gs;
 loading_latch = false;  // Not sure this does anything in JS, not sure how setInterval works. But, for safety.
 
+re_folder_name_crop = /(?:\d*-)?(.+)/
+re_file_name_crop = /(?:\d*-)?(.+?)(\.html)/
+
 // ID'd elements. Filled in onload.
 element_archive_content = null;
 element_channel_selector = null;
@@ -109,6 +112,7 @@ function read_archive_folder(folder_contents, folder_name, current_path, parent_
 
 function create_dropdown(label, indent_level) {
     // Add relevant HTML to element; Return new container
+    label = label.match(re_folder_name_crop)[1]
     var details = document.createElement("details");
     details.classList.add("details_dropdown");
     details.classList.add("text");
@@ -119,6 +123,7 @@ function create_dropdown(label, indent_level) {
 
 function create_archive_selector(label, file_path, indent_level) {
     // Add clickable loading thingy.
+    label = label.match(re_file_name_crop)[1]
     var text_div = document.createElement("div");
     text_div.classList.add("archive_selector");
     var indent = text_indent_amount * indent_level;
