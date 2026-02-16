@@ -1,30 +1,41 @@
 const text_indent_amount = 15;
-const loading_chunk_size = 500;
+const loading_chunk_size = 1000;
 const distance_to_load_chunk = 5000;
 loaded_files = {}
 
 current_archive_text = null;
 archive_fully_loaded = true;  // True by default because there is no archive to load.
 re_span = /(.+?<\/span>[\n\r]+)/gs;
-loading_latch = false;
+loading_latch = false;  // Not sure this does anything in JS, not sure how setInterval works. But, for safety.
 
 // ID'd elements. Filled on onload.
 element_archive_content = null;
 element_channel_selector = null;
+element_button_load_all = null;
 
-// TODO: Hide 'Load full archive' button contextually
+// TODO: Had some weird issues when loading archives one after another. Start was clipped. Investigate.
 // TODO: Embed url loading
 
 window.onload = function() {
-    element_archive_content = document.getElementById("archive_content")
-    element_channel_selector = document.getElementById("channel_selector")
+    element_archive_content = document.getElementById("archive_content");
+    element_channel_selector = document.getElementById("channel_selector");
+    element_button_load_all = document.getElementById("button_load_all");
+
     add_archive_directory_listener();
     setInterval(update_loop, 500);
 }
 
 function update_loop() {
+    // Hide/display "load all" button when necessary.
+    if (archive_fully_loaded || loading_latch) {
+        element_button_load_all.style.display = "none";
+    }
+    else {
+        element_button_load_all.style.display = "inline-block";
+    }
+
     // If close to bottom, render more of the archive file
-    if (archive_fully_loaded) {
+    if (!archive_fully_loaded) {
         var scroll_y = window.scrollY
         var page_height = (document.height !== undefined) ? document.height : document.body.offsetHeight;
         if (page_height - scroll_y <= distance_to_load_chunk) {
