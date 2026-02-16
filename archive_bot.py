@@ -195,10 +195,10 @@ class MyClient(discord.Client):
 		return Path(".", "archive", "DMs", f"{name}.html")
 
 	def get_archive_path_server(self, channel: discord.abc.GuildChannel) -> Path:
-		channel_name = pathvalidate.sanitize_filename(f"{channel.position}-{channel.name}")
+		channel_name = pathvalidate.sanitize_filename(f"{str(channel.position).zfill(3)}-{channel.name}")
 		server_name = pathvalidate.sanitize_filename(f"{channel.guild.name}")
 		if channel.category:
-			category_name = pathvalidate.sanitize_filename(f"{channel.category.position}-{channel.category.name}")
+			category_name = pathvalidate.sanitize_filename(f"{str(channel.category.position).zfill(3)}-{channel.category.name}")
 			return Path(".", "archive", "servers", server_name, category_name, f"{channel_name}.html")
 		return Path(".", "archive", "servers", server_name, f"{channel_name}.html")
 
@@ -231,6 +231,7 @@ def main():
 
 	printlog("Connecting to Discord...", logger, logging.INFO)
 	client.run(TOKEN, log_handler=None)
+
 
 if __name__ == "__main__":
 	main()
