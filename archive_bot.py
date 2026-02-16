@@ -185,16 +185,23 @@ class MyClient(discord.Client):
 
 	def get_archive_path_group(self, channel: discord.GroupChannel):
 		name = channel.name
+		# Sanitizes file name. Taken from: https://stackoverflow.com/a/7406369
+		name = "".join(c for c in name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
 		return Path(".", "archive", "groups", f"{name}.html")
 
 	def get_archive_path_dm(self, channel: discord.DMChannel) -> Path:
 		name = channel.recipient.display_name
+		# Sanitizes file name.
+		name = "".join(c for c in name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
 		return Path(".", "archive", "DMs", f"{name}.html")
 
 	def get_archive_path_server(self, channel: discord.abc.GuildChannel) -> Path:
+		server_name = "".join(c for c in channel.guild.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+		channel_name = "".join(c for c in channel.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
 		if channel.category:
-			return Path(".", "archive", "servers", channel.guild.name, channel.category.name, f"{channel.name}.html")
-		return Path(".", "archive", "servers", channel.guild.name, f"{channel.name}.html")
+			category_name = "".join(c for c in channel.category.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+			return Path(".", "archive", "servers", server_name, category_name, f"{channel_name}.html")
+		return Path(".", "archive", "servers", server_name, f"{channel_name}.html")
 
 
 # Prints to console, also logs.
