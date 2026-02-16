@@ -11,6 +11,7 @@ import bleach
 # TODO: Check weirdness with datetime
 # TODO: Replace pings with user's name
 # TODO: User list, pins, roles, emoji
+# TODO: Archived threads in forum
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -50,23 +51,23 @@ class MyClient(discord.Client):
 				try:
 					found = await self.fetch_channel(found_id)
 					if found:
-						await self.archive_channel_command(found)
+						await self.archive_channel(found)
 						continue
 				except discord.NotFound:
 					pass
 				try:
 					found = await self.fetch_guild(found_id)
 					if found:
-						await self.archive_guild_command(found)
+						await self.archive_guild(found)
 						continue
 				except discord.NotFound:
 					pass
 
 				printlog("Could not find server or channel with id: " + str(found_id), self.logger, logging.WARNING)
 			except discord.Forbidden as e:
-				printlog(f"Could not access id ({found_id}), no permission.", self.logger, logging.WARNING)
+				printlog(f"Could not access id ({found_id}), no permission. Error: {e}", self.logger, logging.WARNING)
 
-	async def archive_guild_command(self, guild: discord.Guild):
+	async def archive_guild(self, guild: discord.Guild):
 		try:
 			channels = await guild.fetch_channels()
 		except (discord.HTTPException, discord.InvalidData) as e:
@@ -75,17 +76,32 @@ class MyClient(discord.Client):
 		printlog(f"Found {len(channels)} channels: " + str(channels), self.logger, logging.INFO)
 		for channel in channels:
 			# Channel needs to be re-fetched, because this does not fill in info like category.
-			channel = await self.fetch_channel(channel.id)
-			await self.archive_channel_command(channel)
+			try:
+				channel = await self.fetch_channel(channel.id)
+			except discord.Forbidden as e:
+				printlog(f"Could not get channel {channel.name} ({channel.id}): No permission. Error: {e}", self.logger, logging.WARNING)
+				continue
+			await self.archive_channel(channel)
 		printlog(f"Finished archiving server: {guild.name} ({guild.id})", self.logger, logging.INFO)
 
-	async def archive_channel_command(self, channel):
+	async def archive_channel(self, channel):
 		if not self.can_archive_channel(channel):
 			printlog(f"Skipping channel ({channel.id}) of type {type(channel)}", self.logger, logging.INFO)
 			return
-		await self.archive_channel_history(channel)
+		# Forums are a weird middle ground. I'd prefer to treat them as their own thing,
+		# but that they pretend to be channels complicates things.
+		# So, I deal with it here.
+		if isinstance(channel, discord.ForumChannel):
+			await self.archive_forum(channel)
+		else:
+			await self.archive_channel_messages(channel)
 
-	async def archive_channel_history(self, channel):
+	async def archive_forum(self, forum: discord.ForumChannel):
+		forum_threads = forum.threads
+		for thread in forum_threads:
+			await self.archive_channel_messages(thread)
+
+	async def archive_channel_messages(self, channel):
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.
 		last_author = ""
 		last_date = ""  # The d/m/y of the last message.
@@ -95,6 +111,8 @@ class MyClient(discord.Client):
 			archive_path = self.get_archive_path_server(channel)
 		elif isinstance(channel, discord.GroupChannel):
 			archive_path = self.get_archive_path_group(channel)
+		elif isinstance(channel, discord.Thread):
+			archive_path = self.get_archive_path_thread(channel)
 		else:
 			archive_path = self.get_archive_path_dm(channel)
 
@@ -168,9 +186,9 @@ class MyClient(discord.Client):
 		f.close()
 		printlog(f"Finished archiving channel: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
 
+	#region Helper functions
 	def can_archive_channel(self, channel):
-		# TODO: Support for discord.ForumChannel
-		return isinstance(channel, (discord.VoiceChannel, discord.DMChannel, discord.TextChannel, discord.GroupChannel))
+		return isinstance(channel, (discord.VoiceChannel, discord.DMChannel, discord.ForumChannel, discord.TextChannel, discord.GroupChannel))
 
 	# DM authors don't have role colours, so are handled differently.
 	def get_author_dm(self, message):
@@ -203,6 +221,21 @@ class MyClient(discord.Client):
 			category_name = pathvalidate.sanitize_filename(f"{str(channel.category.position).zfill(3)}-{channel.category.name}")
 			return Path(".", "archive", "servers", server_name, category_name, f"{channel_name}.html")
 		return Path(".", "archive", "servers", server_name, f"{channel_name}.html")
+
+	def get_archive_path_thread(self, thread: discord.Thread) -> Path:
+		server_name = pathvalidate.sanitize_filename(thread.guild.name)
+		thread_name = pathvalidate.sanitize_filename(f"{thread.created_at.timestamp()}-{thread.name}")
+		p = Path(".", "archive", "servers", server_name)
+		if thread.category:
+			category_name = pathvalidate.sanitize_filename(f"{str(thread.category.position).zfill(3)}-{thread.category.name}")
+			p = p / category_name
+		if thread.parent:
+			channel_name = pathvalidate.sanitize_filename(f"{str(thread.parent.position).zfill(3)}-{thread.parent.name}-threads")
+			p = p / channel_name
+		p = p / thread_name
+
+		return p
+	#endregion
 
 
 # Prints to console, also logs.
