@@ -8,6 +8,8 @@ import logging
 # TODO: Sanitize text.
 # TODO: Write how-to guide
 # TODO: Check weirdness with datetime
+# TODO: Match channel ranking with file name.
+# TODO: Replace pings with user's name
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -178,7 +180,7 @@ class MyClient(discord.Client):
 
 	def get_author_server(self, message):
 		user_color = self.get_user_color(message.author)
-		span = f'<span style="color:{user_color}">{message.author.display_name}</span>'
+		span = f'<span style="color:{user_color}">{message.author.display_name}</span>\n'
 		return span
 
 	def get_user_color(self, user):
