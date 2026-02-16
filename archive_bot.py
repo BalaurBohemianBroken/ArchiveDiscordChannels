@@ -4,11 +4,11 @@ import datetime
 from pathlib import Path
 import os
 import logging
+import pathvalidate
 
 # TODO: Sanitize text.
 # TODO: Write how-to guide
 # TODO: Check weirdness with datetime
-# TODO: Match channel ranking with file name.
 # TODO: Replace pings with user's name
 
 with open("token.txt", "r") as f:
@@ -187,22 +187,18 @@ class MyClient(discord.Client):
 		return "#" + hex(user.color.value)[2:]
 
 	def get_archive_path_group(self, channel: discord.GroupChannel):
-		name = channel.name
-		# Sanitizes file name. Taken from: https://stackoverflow.com/a/7406369
-		name = "".join(c for c in name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+		name = pathvalidate.sanitize_filename(channel.name)
 		return Path(".", "archive", "groups", f"{name}.html")
 
 	def get_archive_path_dm(self, channel: discord.DMChannel) -> Path:
-		name = channel.recipient.display_name
-		# Sanitizes file name.
-		name = "".join(c for c in name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+		name = pathvalidate.sanitize_filename(channel.recipient.display_name)
 		return Path(".", "archive", "DMs", f"{name}.html")
 
 	def get_archive_path_server(self, channel: discord.abc.GuildChannel) -> Path:
-		server_name = "".join(c for c in channel.guild.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
-		channel_name = "".join(c for c in channel.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+		channel_name = pathvalidate.sanitize_filename(f"{channel.position}-{channel.name}")
+		server_name = pathvalidate.sanitize_filename(f"{channel.guild.name}")
 		if channel.category:
-			category_name = "".join(c for c in channel.category.name if c.isalpha() or c.isdigit() or c == ' ').rstrip()
+			category_name = pathvalidate.sanitize_filename(f"{channel.category.position}-{channel.category.name}")
 			return Path(".", "archive", "servers", server_name, category_name, f"{channel_name}.html")
 		return Path(".", "archive", "servers", server_name, f"{channel_name}.html")
 
