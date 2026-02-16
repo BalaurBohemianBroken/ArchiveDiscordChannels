@@ -12,6 +12,7 @@ import bleach
 # TODO: Replace pings with user's name
 # TODO: User list, pins, roles, emoji
 # TODO: Archived threads in forum
+# TODO: Get threads from channels
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -97,6 +98,7 @@ class MyClient(discord.Client):
 			await self.archive_channel_messages(channel)
 
 	async def archive_forum(self, forum: discord.ForumChannel):
+		printlog(f"Archiving forum channel: {forum.name} ({forum.id})", self.logger, logging.INFO)
 		forum_threads = forum.threads
 		for thread in forum_threads:
 			await self.archive_channel_messages(thread)
@@ -106,6 +108,7 @@ class MyClient(discord.Client):
 		last_author = ""
 		last_date = ""  # The d/m/y of the last message.
 		last_datetime = None
+		thread_or_channel = "channel"
 		channel_is_server = isinstance(channel, discord.abc.GuildChannel)
 		if channel_is_server:
 			archive_path = self.get_archive_path_server(channel)
@@ -113,6 +116,7 @@ class MyClient(discord.Client):
 			archive_path = self.get_archive_path_group(channel)
 		elif isinstance(channel, discord.Thread):
 			archive_path = self.get_archive_path_thread(channel)
+			thread_or_channel = "thread"
 		else:
 			archive_path = self.get_archive_path_dm(channel)
 
@@ -127,7 +131,7 @@ class MyClient(discord.Client):
 				printlog(f"Cannot access channel, no permission: {channel.name} ({channel.id})", self.logger, logging.INFO)
 				return
 
-		printlog(f"Archiving channel {channel.name} ({channel.id})...", self.logger, logging.INFO)
+		printlog(f"Archiving {thread_or_channel} {channel.name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
@@ -184,7 +188,7 @@ class MyClient(discord.Client):
 			last_author = author
 		f.write(self.html_doc_end)
 		f.close()
-		printlog(f"Finished archiving channel: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
+		printlog(f"Finished archiving {thread_or_channel}: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
 
 	#region Helper functions
 	def can_archive_channel(self, channel):
@@ -224,7 +228,7 @@ class MyClient(discord.Client):
 
 	def get_archive_path_thread(self, thread: discord.Thread) -> Path:
 		server_name = pathvalidate.sanitize_filename(thread.guild.name)
-		thread_name = pathvalidate.sanitize_filename(f"{thread.created_at.timestamp()}-{thread.name}")
+		thread_name = pathvalidate.sanitize_filename(f"{thread.created_at.timestamp()}-{thread.name}.html")
 		p = Path(".", "archive", "servers", server_name)
 		if thread.category:
 			category_name = pathvalidate.sanitize_filename(f"{str(thread.category.position).zfill(3)}-{thread.category.name}")
