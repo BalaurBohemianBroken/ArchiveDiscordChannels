@@ -43,24 +43,21 @@ class MyClient(discord.Client):
 
 		for found_id in found_ids:
 			try:
-				# Try get methods first, fetch if that fails, then report error.
-				found = self.get_channel(found_id)
-				if found:
-					await self.archive_channel_command(found)
-					continue
-				found = self.get_guild(found_id)
-				if found:
-					await self.archive_guild_command(found)
-					continue
-
-				found = await self.fetch_channel(found_id)
-				if found:
-					await self.archive_channel_command(found)
-					continue
-				found = await self.fetch_guild(found_id)
-				if found:
-					await self.archive_guild_command(found)
-					continue
+				# Doing fetch rather than bothering with get, because I'll need to fetch anyway.
+				try:
+					found = await self.fetch_channel(found_id)
+					if found:
+						await self.archive_channel_command(found)
+						continue
+				except discord.NotFound:
+					pass
+				try:
+					found = await self.fetch_guild(found_id)
+					if found:
+						await self.archive_guild_command(found)
+						continue
+				except discord.NotFound:
+					pass
 
 				printlog("Could not find server or channel with id: " + str(found_id), self.logger, logging.WARNING)
 			except discord.Forbidden as e:
@@ -74,7 +71,10 @@ class MyClient(discord.Client):
 			return
 		printlog(f"Found {len(channels)} channels: " + str(channels), self.logger, logging.INFO)
 		for channel in channels:
+			# Channel needs to be re-fetched, because this does not fill in info like category.
+			channel = await self.fetch_channel(channel.id)
 			await self.archive_channel_command(channel)
+		printlog(f"Finished archiving server: {guild.name} ({guild.id})", self.logger, logging.INFO)
 
 	async def archive_channel_command(self, channel):
 		if not self.can_archive_channel(channel):
@@ -165,7 +165,8 @@ class MyClient(discord.Client):
 		printlog(f"Finished archiving channel: {channel.name} ({str(channel.id)})", self.logger, logging.INFO)
 
 	def can_archive_channel(self, channel):
-		return isinstance(channel, (discord.VoiceChannel, discord.ForumChannel, discord.DMChannel, discord.TextChannel, discord.GroupChannel))
+		# TODO: Support for discord.ForumChannel
+		return isinstance(channel, (discord.VoiceChannel, discord.DMChannel, discord.TextChannel, discord.GroupChannel))
 
 	# DM authors don't have role colours, so are handled differently.
 	def get_author_dm(self, message):

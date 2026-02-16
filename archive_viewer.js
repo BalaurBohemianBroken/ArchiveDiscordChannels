@@ -8,7 +8,7 @@ archive_fully_loaded = true;  // True by default because there is no archive to 
 re_span = /(.+?<\/span>[\n\r]+)/gs;
 loading_latch = false;  // Not sure this does anything in JS, not sure how setInterval works. But, for safety.
 
-// ID'd elements. Filled on onload.
+// ID'd elements. Filled in onload.
 element_archive_content = null;
 element_channel_selector = null;
 element_button_load_all = null;
