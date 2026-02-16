@@ -128,12 +128,12 @@ function create_archive_selector(label, file_path, indent_level) {
     return text_div;
 }
 
-// From: https://stackoverflow.com/a/196510
 function clicked_archive(element) {
     reset_current_archive();
 
     var element_path = element.getAttribute("data-file_path");
     var archive_file = loaded_files[element_path];
+    // From: https://stackoverflow.com/a/196510
     var reader = new FileReader();
     reader.onload = () => {
         loaded_archive(reader.result)
@@ -142,6 +142,7 @@ function clicked_archive(element) {
 }
 
 function loaded_archive(archive_content) {
+    archive_fully_loaded = false;
     // This is pretty rough. But it should work with any modern archive files I make.
     var dummy = document.createElement("div");
     dummy.innerHTML = archive_content;
@@ -184,8 +185,8 @@ function load_archive_full() {
 }
 
 function reset_current_archive() {
-    element_archive_content.innerHTML = "";
+    re_span.lastIndex = 0;
     current_archive_text = null;
-    current_archive_position = 0;
     archive_fully_loaded = false;
+    element_archive_content.innerHTML = "";
 }
