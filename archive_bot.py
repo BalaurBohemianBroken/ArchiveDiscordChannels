@@ -93,15 +93,22 @@ class MyClient(discord.Client):
 		# but that they pretend to be channels complicates things.
 		# So, I deal with it here.
 		if isinstance(channel, discord.ForumChannel):
-			await self.archive_forum(channel)
+			await self.archive_threads(channel)
 		else:
 			await self.archive_channel_messages(channel)
 
-	async def archive_forum(self, forum: discord.ForumChannel):
-		printlog(f"Archiving forum channel: {forum.name} ({forum.id})", self.logger, logging.INFO)
-		forum_threads = forum.threads
-		for thread in forum_threads:
+	async def archive_threads(self, channel: discord.abc.GuildChannel):
+		if not self.can_channel_have_threads(channel):
+			return
+		printlog(f"Archiving threads in channel: {channel.name} ({channel.id})", self.logger, logging.INFO)
+		channel_threads = channel.threads  # Ignore IDE, this will work.
+		for thread in channel_threads:
 			await self.archive_channel_messages(thread)
+		try:
+			async for thread in channel.archived_threads(limit=None, private=True, joined=True):
+				await self.archive_channel_messages(thread)
+		except Exception as e:
+			printlog(f"Failed to get threads in channel: {channel.name} ({channel.id}) - Error: {e}", self.logger, logging.ERROR)
 
 	async def archive_channel_messages(self, channel):
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.
@@ -193,6 +200,9 @@ class MyClient(discord.Client):
 	#region Helper functions
 	def can_archive_channel(self, channel):
 		return isinstance(channel, (discord.VoiceChannel, discord.DMChannel, discord.ForumChannel, discord.TextChannel, discord.GroupChannel))
+
+	def can_channel_have_threads(self, channel):
+		return isinstance(channel, (discord.ForumChannel, discord.TextChannel))
 
 	# DM authors don't have role colours, so are handled differently.
 	def get_author_dm(self, message):
