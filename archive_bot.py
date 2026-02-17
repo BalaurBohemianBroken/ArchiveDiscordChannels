@@ -9,9 +9,9 @@ import bleach
 
 # TODO: Write how-to guide
 # TODO: Check weirdness with datetime
-# TODO: Replace pings with user's name
 # TODO: User list, pins, roles, emoji
 # TODO: Archived threads in forum
+# TODO: Profile pictures
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
