@@ -4,3 +4,4 @@ archiver.log
 venv/
 attachments/*
 archive/
+*-temp
