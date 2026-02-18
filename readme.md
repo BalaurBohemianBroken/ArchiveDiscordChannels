@@ -24,7 +24,7 @@ Create a file in the same directory as archive_bot.py, name it `token.txt`, and 
 The bot should now work. Run archive_bot.py. It should print that it has connected to Discord with your username after a small while.
 
 ## Archiving a channel
-To archive a channel, make sure archive_bot.py is running. Send a message into any chatroom anywhere formatted as `P.archive [id_list] [redundant]`. Replace id_list with as many channel or server IDs as you wish to archive. The "redundant" keyword can be used to re-do existing archives, to update them. For example: `P.archive 602625365281603637 1045982708410634270`, or `P.archive 1045982708410634270 redundant` 
+To archive a channel, make sure archive_bot.py is running. Send a message into any chatroom anywhere formatted as `P.archive [id_list] [redo]`. Replace id_list with as many channel or server IDs as you wish to archive. The "redo" keyword can be used to re-do existing archives, to update them. For example: `P.archive 602625365281603637 1045982708410634270`, or `P.archive 1045982708410634270 redo` 
 
 These IDs are the snowflakes for the relevant channels or servers. With developer mode enabled on Discord, you can right-click on one, and select `Copy Channel ID` or `Copy Server ID`.
 

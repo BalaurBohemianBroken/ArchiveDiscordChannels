@@ -45,7 +45,7 @@ class MyClient(discord.Client):
 
 	async def archive_command(self, message_content: str):
 		re_snowflake = r"\d+"
-		re_full = r"redundant"
+		re_full = r"redo"
 		found_ids = re.findall(re_snowflake, message_content)
 		if len(found_ids) <= 0:
 			printlog("Could not find a server or channel id in the command!", self.logger, logging.WARNING)
@@ -150,10 +150,10 @@ class MyClient(discord.Client):
 
 		if archive_path.is_file():
 			if not do_existing:
-				printlog(f"Skipping {thread_or_channel} {channel_name} ({channel.id}) - already exists, and \"redundant\" is false.", self.logger, logging.INFO)
+				printlog(f"Skipping {thread_or_channel} {channel_name} ({channel.id}) - already exists, and \"redo\" is false.", self.logger, logging.INFO)
 				return
 			else:
-				printlog(f"\"redundant\" true, updating existing archive of {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
+				printlog(f"\"redo\" true, updating existing archive of {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		else:
 			printlog(f"Archiving {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		temp_dir = f"{archive_path.name}-temp"
