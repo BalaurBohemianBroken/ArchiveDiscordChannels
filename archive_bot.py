@@ -44,10 +44,13 @@ class MyClient(discord.Client):
 			await self.archive_command(c)
 
 	async def archive_command(self, message_content: str):
-		found_ids = re.findall(r'\d+', message_content)
+		re_snowflake = r"\d+"
+		re_full = r"redundant"
+		found_ids = re.findall(re_snowflake, message_content)
 		if len(found_ids) <= 0:
 			printlog("Could not find a server or channel id in the command!", self.logger, logging.WARNING)
 			return
+		do_existing = re.search(re_full, message_content) is not None
 
 		for found_id in found_ids:
 			try:
@@ -55,14 +58,14 @@ class MyClient(discord.Client):
 				try:
 					found = await self.fetch_channel(found_id)
 					if found:
-						await self.archive_channel(found)
+						await self.archive_channel(found, do_existing)
 						continue
 				except discord.NotFound:
 					pass
 				try:
 					found = await self.fetch_guild(found_id)
 					if found:
-						await self.archive_guild(found)
+						await self.archive_guild(found, do_existing)
 						continue
 				except discord.NotFound:
 					pass
@@ -71,7 +74,7 @@ class MyClient(discord.Client):
 			except discord.Forbidden as e:
 				printlog(f"Could not access id ({found_id}), no permission. Error: {e}", self.logger, logging.WARNING)
 
-	async def archive_guild(self, guild: discord.Guild):
+	async def archive_guild(self, guild: discord.Guild, do_existing: bool):
 		try:
 			channels = await guild.fetch_channels()
 		except (discord.HTTPException, discord.InvalidData) as e:
@@ -85,10 +88,10 @@ class MyClient(discord.Client):
 			except discord.Forbidden as e:
 				printlog(f"Could not get channel {channel.name} ({channel.id}): No permission. Error: {e}", self.logger, logging.WARNING)
 				continue
-			await self.archive_channel(channel)
+			await self.archive_channel(channel, do_existing)
 		printlog(f"Finished archiving server: {guild.name} ({guild.id})", self.logger, logging.INFO)
 
-	async def archive_channel(self, channel):
+	async def archive_channel(self, channel, do_existing: bool):
 		if not self.can_archive_channel(channel):
 			printlog(f"Skipping channel ({channel.id}) of type {type(channel)}", self.logger, logging.INFO)
 			return
@@ -96,27 +99,27 @@ class MyClient(discord.Client):
 		# but that they pretend to be channels complicates things.
 		# So, I deal with it here.
 		if not isinstance(channel, discord.ForumChannel):
-			await self.archive_channel_messages(channel)
-		await self.archive_threads(channel)
+			await self.archive_channel_messages(channel, do_existing)
+		await self.archive_threads(channel, do_existing)
 
-	async def archive_threads(self, channel: discord.abc.GuildChannel):
+	async def archive_threads(self, channel: discord.abc.GuildChannel, do_existing: bool):
 		if not self.can_channel_have_threads(channel):
 			return
 		printlog(f"Archiving threads in channel: {channel.name} ({channel.id})", self.logger, logging.INFO)
 		channel_threads = channel.threads  # Ignore IDE, this will work.
 		for thread in channel_threads:
-			await self.archive_channel_messages(thread)
+			await self.archive_channel_messages(thread, do_existing)
 		try:
 			if isinstance(channel, discord.TextChannel):
 				async for thread in channel.archived_threads(limit=None, private=True, joined=True):
-					await self.archive_channel_messages(thread)
+					await self.archive_channel_messages(thread, do_existing)
 			elif isinstance(channel, discord.ForumChannel):
 				async for thread in channel.archived_threads(limit=None):
-					await self.archive_channel_messages(thread)
+					await self.archive_channel_messages(thread, do_existing)
 		except Exception as e:
 			printlog(f"Failed to get threads in channel: {channel.name} ({channel.id}) - Error: {e}", self.logger, logging.ERROR)
 
-	async def archive_channel_messages(self, channel):
+	async def archive_channel_messages(self, channel, do_existing: bool):
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.
 		last_author = ""
 		last_date = ""  # The d/m/y of the last message.
@@ -145,7 +148,14 @@ class MyClient(discord.Client):
 				printlog(f"Cannot access channel, no permission: {channel.name} ({channel.id})", self.logger, logging.INFO)
 				return
 
-		printlog(f"Archiving {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
+		if archive_path.is_file():
+			if not do_existing:
+				printlog(f"Skipping {thread_or_channel} {channel_name} ({channel.id}) - already exists, and \"redundant\" is false.", self.logger, logging.INFO)
+				return
+			else:
+				printlog(f"\"redundant\" true, updating existing archive of {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
+		else:
+			printlog(f"Archiving {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		os.makedirs(os.path.dirname(archive_path), exist_ok=True)
 		f = open(archive_path, "w", encoding="utf-8")
 		f.write(self.html_doc_start)
