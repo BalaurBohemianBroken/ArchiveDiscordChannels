@@ -7,11 +7,12 @@ import logging
 import pathvalidate
 import bleach
 
-# TODO: Write how-to guide
+# TODO: Handle OSError for attachments better.
 # TODO: Check weirdness with datetime
 # TODO: User list, pins, roles, emoji
 # TODO: Archived threads in forum
 # TODO: Profile pictures
+# TODO: Make it work with forwards.
 
 with open("token.txt", "r") as f:
 	TOKEN = f.readline()
@@ -120,6 +121,9 @@ class MyClient(discord.Client):
 			printlog(f"Failed to get threads in channel: {channel.name} ({channel.id}) - Error: {e}", self.logger, logging.ERROR)
 
 	async def archive_channel_messages(self, channel, do_existing: bool):
+		# I don't like this method.
+		# It should be a lot more compartmentalized.
+		# Too many dependencies so error checking is horrid.
 		grouping_limit = datetime.timedelta(minutes=10)  # A threshold for the range of time messages will be grouped for.
 		last_author = ""
 		last_date = ""  # The d/m/y of the last message.
@@ -157,7 +161,11 @@ class MyClient(discord.Client):
 		else:
 			printlog(f"Archiving {thread_or_channel} {channel_name} ({channel.id}) into {archive_path}", self.logger, logging.INFO)
 		temp_dir = f"{archive_path.name}-temp"
-		f = open(temp_dir, "w", encoding="utf-8")
+		try:
+			f = open(temp_dir, "w", encoding="utf-8")
+		except Exception as e:
+			printlog("Failed to create temp directory for archive.", self.logger, logging.ERROR)
+			return
 		f.write(self.html_doc_start)
 		async for message in channel.history(limit=None, oldest_first=True):
 			archive_count += 1
@@ -170,74 +178,79 @@ class MyClient(discord.Client):
 			time_diff = 0
 			if last_datetime is not None:
 				time_diff = m_t - last_datetime
-
 			author = str(message.author.display_name)
-			# Replace @ mentions with @username
-			message_content = message.content
-			# from: to
-			substitutions = {}
-			for match in re.findall(self.re_user_mention, message_content):
-				matched_user_id = match[1]
-				# Try find member and get display name
-				sub_name = ""
-				if isinstance(message.channel, discord.abc.GuildChannel):
-					try:
-						fetched_member = await message.channel.guild.fetch_member(matched_user_id)
-						sub_name = fetched_member.display_name
-					except:
-						pass
-				if sub_name == "":
-					# For some reason, this gives me a 403 unauthorized exception.
-					# That's not documented behaviour, so I don't know how to solve that.
-					# I'm leaving it here on the off chance it works, sometimes.
-					try:
-						fetched_user = await self.fetch_user(matched_user_id)
-						sub_name = fetched_user.display_name
-					except:
-						pass
-				if sub_name == "":
-					self.logger.log(logging.WARNING, f"Unable to get guild or user for message ping at id: {matched_user_id}")
-					continue
-				substitutions[match[0]] = f"@{sub_name}"
-			for substitution in substitutions:
-				sub_from = substitution
-				sub_to = substitutions[substitution]
-				message_content = message_content.replace(sub_from, sub_to)
+			try:
+				# Replace @ mentions with @username
+				message_content = message.content
+				# from: to
+				substitutions = {}
+				for match in re.findall(self.re_user_mention, message_content):
+					matched_user_id = match[1]
+					# Try find member and get display name
+					sub_name = ""
+					if isinstance(message.channel, discord.abc.GuildChannel):
+						try:
+							fetched_member = await message.channel.guild.fetch_member(matched_user_id)
+							sub_name = fetched_member.display_name
+						except:
+							pass
+					if sub_name == "":
+						# For some reason, this gives me a 403 unauthorized exception.
+						# That's not documented behaviour, so I don't know how to solve that.
+						# I'm leaving it here on the off chance it works, sometimes.
+						try:
+							fetched_user = await self.fetch_user(matched_user_id)
+							sub_name = fetched_user.display_name
+						except:
+							pass
+					if sub_name == "":
+						self.logger.log(logging.WARNING, f"Unable to get guild or user for message ping at id: {matched_user_id}")
+						continue
+					substitutions[match[0]] = f"@{sub_name}"
+				for substitution in substitutions:
+					sub_from = substitution
+					sub_to = substitutions[substitution]
+					message_content = message_content.replace(sub_from, sub_to)
 
-			content_sanitized = bleach.clean(message_content)
-			msg_format = f'<span class="message"><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
+				content_sanitized = bleach.clean(message_content)
+				msg_format = f'<span class="message"><span class="time">{m_time}</span> {content_sanitized}</span>'  # How a message is displayed in my formatting.
 
-			# If a new day has started, cause a message break.
-			if m_date != last_date:
-				f.write(f'\n<span class="date">======== {m_date} ========</span>\n')
-			if last_author != author or time_diff >= grouping_limit or m_date != last_date:
-				if channel_is_server:
-					span = self.get_author_server(message)
-				else:
-					span = self.get_author_dm(message)
-				f.write(span)
-			f.write(f"{msg_format}\n")
+				# If a new day has started, cause a message break.
+				if m_date != last_date:
+					f.write(f'\n<span class="date">======== {m_date} ========</span>\n')
+				if last_author != author or time_diff >= grouping_limit or m_date != last_date:
+					if channel_is_server:
+						span = self.get_author_server(message)
+					else:
+						span = self.get_author_dm(message)
+					f.write(span)
+				f.write(f"{msg_format}\n")
 
-			# Save attached files
-			if message.attachments:
-				atts_string = ""
-				atts_tags_string = ""
-				for att in message.attachments:
-					try:
+				# Save attached files
+				if message.attachments:
+					atts_string = ""
+					atts_tags_string = ""
+					for att in message.attachments:
 						atts_string += f"({att.id}_{att.filename}) "
 						fname = f"{att.id}_{att.filename}"
 						p = Path("attachments", str(channel.id), fname)
-						p.parent.mkdir(parents=True, exist_ok=True)
-						with open(p, "w+"):
-							pass
-						await att.save(p)
-						if re.search(r".(png|jpg|gif|jpeg)$", att.filename) is not None:
-							atts_tags_string += f"<img src='attachments/{channel.id}/{fname}'>\n"
-					except (discord.NotFound, discord.HTTPException) as e:
-						printlog(f"==Attachment Error==\nMessage snowflake: {message.id}\nError: {e}", self.logger, logging.ERROR)
-				f.write(f"<span class='embed_message'>File: {atts_string}</span>\n")
-				if atts_tags_string:
-					f.write(f"<span class='embed'>{atts_tags_string}</span>\n")
+						try:
+							p.parent.mkdir(parents=True, exist_ok=True)
+							with open(p, "w+"):
+								pass
+							await att.save(p)
+							if re.search(r".(png|jpg|gif|jpeg)$", att.filename) is not None:
+								atts_tags_string += f"<img src='attachments/{channel.id}/{fname}'>\n"
+						except OSError:
+							printlog(f"Failed to create file for attachment at: {p}.", self.logger, logging.error)
+						except Exception as e:
+							printlog(f"==Attachment Error==\nMessage snowflake: {message.id}\nError: {e}", self.logger, logging.ERROR)
+
+					f.write(f"<span class='embed_message'>File: {atts_string}</span>\n")
+					if atts_tags_string:
+						f.write(f"<span class='embed'>{atts_tags_string}</span>\n")
+			except Exception as e:
+				printlog(f"Unknown error while archiving message. Exception: {e} Channel: {channel.name} ({channel.id}). Content: {message.content}", self.logger, logging.ERROR)
 
 			last_date = m_date
 			last_datetime = m_t
