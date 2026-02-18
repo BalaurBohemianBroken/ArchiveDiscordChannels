@@ -31,6 +31,7 @@ class MyClient(discord.Client):
 
 		# id: user
 		self.saved_users = {}
+		self.currently_archiving = False
 
 	async def on_ready(self):
 		printlog(f"Logged on as {self.user}", self.logger, logging.INFO)
@@ -42,7 +43,16 @@ class MyClient(discord.Client):
 
 		c = message.content
 		if c.startswith("P.archive"):
-			await self.archive_command(c)
+			if not self.currently_archiving:
+				self.currently_archiving = True
+				try:
+					await self.archive_command(c)
+				except Exception as e:
+					printlog(f"Uncaught exception while archiving: {e}", self.logger, logging.ERROR)
+				self.currently_archiving = False
+			else:
+				printlog("P.archive was called, but an archive is already in process.", self.logger, logging.WARNING)
+				return
 
 	async def archive_command(self, message_content: str):
 		re_snowflake = r"\d+"
